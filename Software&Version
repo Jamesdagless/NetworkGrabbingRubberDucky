@@ -1,0 +1,33 @@
+import os
+import subprocess
+
+# Get the path of the current directory (the USB drive)
+import sys
+
+path = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+# create an empty list to store the software information
+software_info = []
+
+# check the operating system
+if os.name == 'nt':
+    # for windows
+    command = 'wmic product get name, version'
+    output = subprocess.check_output(command, shell=True)
+    for line in output.splitlines():
+        if line.decode().strip() and not line.decode().startswith('Name'):
+            name, version = line.decode().strip().split(None, 1)
+            software_info.append({'name': name, 'version': version})
+else:
+    # for mac or linux
+    command = 'dpkg -l'
+    output = subprocess.check_output(command, shell=True)
+    for line in output.splitlines():
+        if line.decode().startswith('ii'):
+            name, version = line.decode().strip().split(None, 2)[1:]
+            software_info.append({'name': name, 'version': version})
+
+# Create a file on the USB drive to store the software information
+with open(path + "/software_info.txt", "w") as file:
+    for info in software_info:
+        file.write(str(info) + "\n")
