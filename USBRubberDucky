@@ -1,0 +1,51 @@
+import psutil
+import os
+import sys
+import socket
+import json
+import logging
+import argparse
+from enum import Enum
+
+logging.basicConfig(filename="network_info.log", level=logging.INFO)
+
+
+class Status(Enum):
+    UP = "up"
+    DOWN = "down"
+
+
+def get_network_info():
+    network_info = []
+    for interface, addrs in psutil.net_if_addrs().items():
+        ip_address = ""
+        mac_address = ""
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                ip_address = addr.address
+            elif addr.family == psutil.AF_LINK:
+                mac_address = addr.address
+        status = Status.UP if psutil.net_if_stats()[interface].isup else Status.DOWN
+        network_info.append(
+            {"interface": interface, "ip_address": ip_address, "mac_address": mac_address, "status": status.value})
+    return network_info
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Gather network information")
+    parser.add_argument("-o", "--overwrite", action="store_true", help="Overwrite the output file if it already exists")
+    parser.add_argument("-f", "--file", default="network_info.json", help="Output file name")
+    args = parser.parse_args()
+    path = os.path.dirname(os.path.abspath(sys.argv[0]))
+    file_path = os.path.join(path, args.file)
+    try:
+        network_info = get_network_info()
+        if args.overwrite:
+            mode = "w"
+        else:
+            mode = "a"
+        with open(file_path, mode) as file:
+            json.dump(network_info, file)
+        logging.info("Network information saved to %s", file_path)
+    except Exception as e:
+        logging.error("An error occurred: %s", e)
